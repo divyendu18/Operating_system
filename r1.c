@@ -1,12 +1,11 @@
 #include <pthread.h>
-#include<semaphore.h>
 #include <stdio.h>
 #include<stdlib.h>
 #include<sys/types.h>
 #include<unistd.h>
 
 
-sem_t wrt;
+pthread_cond_t cond1=PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mutex;
 int count = 5;
 int num_reader = 0;
@@ -18,7 +17,7 @@ void *reader(void *read_n)
     pthread_mutex_lock(&mutex);
     
     if(num_reader == -1) {
-        sem_wait(&wrt); 
+        pthread_cond_wait(&cond1,&mutex); 
     }
 	num_reader++;
     pthread_mutex_unlock(&mutex);
@@ -26,7 +25,7 @@ void *reader(void *read_n)
     pthread_mutex_lock(&mutex);
     num_reader--;
     if(num_reader == 0) {
-        sem_post(&wrt); 
+        pthread_cond_signal(&cond1); 
     }
     pthread_mutex_unlock(&mutex);
 }
@@ -35,10 +34,9 @@ void *writer(void *write_n)
 {   
 	int m=rand()%30;
 	sleep(m);
-    sem_wait(&wrt);
     count = count*2;
     printf("Writer changes: %d count to %d\n",(*((int *)write_n)),count);
-    sem_post(&wrt);
+    pthread_mutex_unlock(&mutex);
 
 }
 
@@ -53,7 +51,6 @@ int main()
 
     pthread_t read[num_reader],write[num_writer];
     pthread_mutex_init(&mutex, NULL);
-    sem_init(&wrt,0,1);
 
     int arr[10] = {1,2,3,4,5,6,7,8,9,10};
 
@@ -75,7 +72,7 @@ int main()
     }
 
     pthread_mutex_destroy(&mutex);
-    sem_destroy(&wrt);
+    pthread_cond_destroy(&cond1);
 
     return 0;
     
